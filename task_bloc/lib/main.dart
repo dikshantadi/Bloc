@@ -1,184 +1,115 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'data/todo_repo.dart';
-import 'bloc/todo_bloc.dart';
-import 'bloc/todo_event.dart';
-import 'bloc/todo_state.dart';
-import 'models/todo.dart';
+import 'package:dio/dio.dart';
 
 void main() {
-  final repo = TodoRepo();
-  runApp(MyApp(repository: repo));
+  runApp(const DioExampleApp());
 }
 
-class MyApp extends StatelessWidget {
-  final TodoRepo repository;
-  const MyApp({super.key, required this.repository});
+class DioExampleApp extends StatelessWidget {
+  const DioExampleApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Dio Example',
       debugShowCheckedModeBanner: false,
-      title: 'Flutter ToDo BLoC + Dio',
-      home: BlocProvider(
-        create: (_) =>
-            TodoBloc(repository: repository)..add(const fetchTodos(limit: 20)),
-        child: const TodoPage(),
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
       ),
+      home: const UsersPage(),
     );
   }
 }
 
-class TodoPage extends StatelessWidget {
-  const TodoPage({super.key});
+class UsersPage extends StatefulWidget {
+  const UsersPage({super.key});
+
+  @override
+  State<UsersPage> createState() => _UsersPageState();
+}
+
+class _UsersPageState extends State<UsersPage> {
+  final Dio dio = Dio(
+    BaseOptions(
+      baseUrl: "https://jsonplaceholder.typicode.com",
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 10),
+    ),
+  );
+
+  bool isLoading = true;
+  List users = [];
+  String? errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchUsers();
+  }
+
+  Future<void> fetchUsers() async {
+    try {
+      // GET request
+      Response response = await dio.get("/users");
+
+      setState(() {
+        users = response.data;
+        isLoading = false;
+      });
+    } on DioException catch (e) {
+      setState(() {
+        errorMessage = "Error: ${e.message}";
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        errorMessage = "Unexpected error: $e";
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final bloc = context.read<TodoBloc>();
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('todo'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              bloc.add(const fetchTodos(limit: 20));
-            },
-            tooltip: 'Refresh',
-          ),
-        ],
-      ),
-      body: BlocConsumer<TodoBloc, TodoState>(
-        listener: (context, state) {
-          if (state is TodoError) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('Error: ${state.message}')));
-          }
-        },
-        builder: (context, state) {
-          if (state is TodoInitial || state is TodoLoading) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (state is TodoLoaded) {
-            if (state.todos.isEmpty) {
-              return const Center(child: Text('No todos'));
-            }
-            return ListView.builder(
-              itemCount: state.todos.length,
-              itemBuilder: (context, index) {
-                final t = state.todos[index];
-                return Dismissible(
-                  key: ValueKey(t.id ?? '${t.title}-$index'),
-                  background: Container(
-                    color: Colors.red,
-                    child: const Icon(Icons.delete, color: Colors.white),
-                  ),
-                  onDismissed: (_) {
-                    if (t.id != null) {
-                      bloc.add(deleteTodo(t.id!));
-                    } else {
-                      // for local items without ID
-                      // you might want a local delete event here instead
-                    }
-                  },
-                  child: ListTile(
-                    title: Text(t.title),
-                    leading: Checkbox(
-                      value: t.isCompleted,
-                      onChanged: (_) {
-                        if (t.id != null) {
-                          bloc.add(toggleTodoCompletion(t.id!));
-                        } else {}
-                      },
+      appBar: AppBar(title: const Text("Dio API Example"), centerTitle: true),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : errorMessage != null
+          ? Center(child: Text(errorMessage!))
+          : RefreshIndicator(
+              onRefresh: fetchUsers,
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: users.length,
+                itemBuilder: (context, index) {
+                  final user = users[index];
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
                     ),
-                    subtitle: Text(
-                      'userId: ${t.userId} | id: ${t.id ?? 'local'}',
+                    elevation: 3,
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.deepPurple.shade200,
+                        child: Text(
+                          user['name'][0],
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      title: Text(user['name']),
+                      subtitle: Text(user['email']),
+                      trailing: Text(user['id'].toString()),
                     ),
-                    onTap: () {
-                      if (t.id != null) bloc.add(toggleTodoCompletion(t.id!));
-                    },
-                    trailing: IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () async {
-                        final newTitle = await showDialog<String>(
-                          context: context,
-                          builder: (context) {
-                            final controller = TextEditingController(
-                              text: t.title,
-                            );
-                            return AlertDialog(
-                              title: const Text('Edit title'),
-                              content: TextField(controller: controller),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.of(context).pop(),
-                                  child: const Text('Cancel'),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () => Navigator.of(
-                                    context,
-                                  ).pop(controller.text),
-                                  child: const Text('Save'),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                        if (newTitle != null && newTitle.trim().isNotEmpty) {
-                          final updated = t.copyWith(title: newTitle.trim());
-                          bloc.add(updateTodo(updated));
-                        }
-                      },
-                    ),
-                  ),
-                );
-              },
-            );
-          } else if (state is TodoError) {
-            return Center(child: Text('Error: ${state.message}'));
-          } else {
-            return const SizedBox.shrink();
-          }
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.add),
-        onPressed: () async {
-          final controller = TextEditingController();
-          final title = await showDialog<String?>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Add Todo'),
-              content: TextField(
-                controller: controller,
-                decoration: const InputDecoration(hintText: 'Todo title'),
+                  );
+                },
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(controller.text),
-                  child: const Text('Add'),
-                ),
-              ],
             ),
-          );
-
-          if (title != null && title.trim().isNotEmpty) {
-            final newTodo = Todo(
-              title: title.trim(),
-              isCompleted: false,
-              userId: 1,
-              id: null,
-              description: '',
-            );
-            bloc.add(addTodo(newTodo));
-          }
-        },
+      floatingActionButton: FloatingActionButton(
+        onPressed: fetchUsers,
+        child: const Icon(Icons.refresh),
       ),
     );
   }
