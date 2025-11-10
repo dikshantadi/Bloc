@@ -7,17 +7,14 @@ import 'api.dart'; // your DioApiClient file
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize SharedPreferences
   final prefs = await SharedPreferences.getInstance();
 
-  // Initialize Dio
   final dio = Dio();
 
-  // Initialize your API client
   final apiClient = DioApiClient(
     dio: dio,
     preferences: prefs,
-    baseUrl: "https://jsonplaceholder.typicode.com", // example API
+    baseUrl: "https://jsonplaceholder.typicode.com",
   );
 
   runApp(MyApp(apiClient: apiClient));
@@ -56,20 +53,18 @@ class _ApiTestWidgetState extends State<ApiTestWidget> {
       _result = "Loading...";
     });
 
-    // Call the API
     final response = await widget.apiClient.request<Map<String, dynamic>>(
       path: "/users/1",
       method: Method_Type.get,
     );
 
-    // Check the result
     if (response.success) {
       setState(() {
-        _result = "✅ Success: ${response.data}";
+        _result = "Success: ${response.data}";
       });
     } else {
       setState(() {
-        _result = "❌ Error: ${response.error?.message}";
+        _result = "Error: ${response.error?.message}";
       });
     }
   }
