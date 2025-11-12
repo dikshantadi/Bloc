@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:task_bloc/network_response.dart';
+import 'package:task_bloc/not_needed/network_response.dart';
 
 enum RequestType { GET, POST, PUT, PATCH, DELETE }
 

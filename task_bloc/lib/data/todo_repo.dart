@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:task_bloc/models/todo.dart';
+import 'package:task_bloc/data/models/todo.dart';
 
 class TodoRepo {
   final Dio _dio;

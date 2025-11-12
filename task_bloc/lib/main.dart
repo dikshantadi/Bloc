@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'api.dart'; // your DioApiClient file
+import 'data/network/api.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
