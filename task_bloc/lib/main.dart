@@ -1,90 +1,128 @@
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import 'data/network/api.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:task_bloc/core/di.dart';
+import 'data/models/todo.dart';
+import 'data/repository/todo_repo.dart';
+import 'logic/bloc/todo_bloc.dart';
+import 'logic/bloc/todo_event.dart';
+import 'logic/bloc/todo_state.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  final prefs = await SharedPreferences.getInstance();
-
-  final dio = Dio();
-
-  final apiClient = DioApiClient(
-    dio: dio,
-    preferences: prefs,
-    baseUrl: "https://jsonplaceholder.typicode.com",
-  );
-
-  runApp(MyApp(apiClient: apiClient));
+  await initDependencies(); // Registers TodoRepo, AppDatabase via GetIt
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final DioApiClient apiClient;
-
-  const MyApp({super.key, required this.apiClient});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final todoRepo = getIt<TodoRepo>();
     return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: const Text('API Test')),
-        body: ApiTestWidget(apiClient: apiClient),
+      title: 'Flutter BLoC Todo',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: BlocProvider(
+        create: (_) => TodoBloc(repository: todoRepo)..add(const fetchTodos()),
+        child: const TodoPage(),
       ),
     );
   }
 }
 
-class ApiTestWidget extends StatefulWidget {
-  final DioApiClient apiClient;
-
-  const ApiTestWidget({super.key, required this.apiClient});
-
-  @override
-  State<ApiTestWidget> createState() => _ApiTestWidgetState();
-}
-
-class _ApiTestWidgetState extends State<ApiTestWidget> {
-  String _result = "Press the button to fetch data";
-
-  Future<void> _fetchData() async {
-    setState(() {
-      _result = "Loading...";
-    });
-
-    final response = await widget.apiClient.request<Map<String, dynamic>>(
-      path: "/users/1",
-      method: Method_Type.get,
-    );
-
-    if (response.success) {
-      setState(() {
-        _result = "Success: ${response.data}";
-      });
-    } else {
-      setState(() {
-        _result = "Error: ${response.error?.message}";
-      });
-    }
-  }
+class TodoPage extends StatelessWidget {
+  const TodoPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    return Scaffold(
+      appBar: AppBar(title: const Text('Todo App')),
+      body: BlocBuilder<TodoBloc, TodoState>(
+        builder: (context, state) {
+          if (state is TodoLoading) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (state is TodoLoaded) {
+            return state.todos.isEmpty
+                ? const Center(child: Text('No todos available'))
+                : ListView.separated(
+                    itemCount: state.todos.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final todo = state.todos[index];
+                      return ListTile(
+                        title: Text(todo.title),
+                        subtitle: Text(todo.description),
+                        trailing: Checkbox(
+                          value: todo.isCompleted,
+                          onChanged: (_) {
+                            context.read<TodoBloc>().add(
+                              toggleTodoCompletion(todo.id),
+                            );
+                          },
+                        ),
+                        onLongPress: () {
+                          context.read<TodoBloc>().add(deleteTodo(todo.id));
+                        },
+                      );
+                    },
+                  );
+          } else if (state is TodoError) {
+            return Center(child: Text('Error: ${state.message}'));
+          }
+          return const Center(child: Text('No data'));
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddTodoDialog(context),
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _showAddTodoDialog(BuildContext context) {
+    final titleController = TextEditingController();
+    final descriptionController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Add New Todo'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_result),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _fetchData,
-              child: const Text("Fetch User Data"),
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(labelText: 'Title'),
+            ),
+            TextField(
+              controller: descriptionController,
+              decoration: const InputDecoration(labelText: 'Description'),
             ),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final title = titleController.text.trim();
+              final description = descriptionController.text.trim();
+              if (title.isEmpty) return;
+
+              final newTodo = Todo(
+                userId: 1,
+                title: title,
+                description: description,
+              );
+              context.read<TodoBloc>().add(addTodo(newTodo));
+              Navigator.pop(context);
+            },
+            child: const Text('Add'),
+          ),
+        ],
       ),
     );
   }

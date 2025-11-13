@@ -10,7 +10,7 @@ class Todo extends Equatable {
   const Todo({
     this.id,
     required this.title,
-    required this.description,
+    this.description = '',
     this.isCompleted = false,
     this.userId,
   });
@@ -29,26 +29,6 @@ class Todo extends Equatable {
       isCompleted: isCompleted ?? this.isCompleted,
       userId: userId ?? this.userId,
     );
-  }
-
-  factory Todo.fromJson(Map<String, dynamic> json) {
-    return Todo(
-      userId: json['userId'],
-      id: json['id'],
-      title: json['title'] ?? '',
-      isCompleted: json['completed'] ?? false,
-      description: json['description'] ?? '',
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'userId': userId,
-      'id': id,
-      'title': title,
-      'description': description,
-      'completed': isCompleted,
-    };
   }
 
   @override
