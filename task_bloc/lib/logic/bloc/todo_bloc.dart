@@ -27,7 +27,7 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
   }
 
   Future<void> _onAddTodo(addTodo event, Emitter<TodoState> emit) async {
-    final current = state;
+    final current = state; // save current state BEFORE loading
 
     emit(TodoLoading());
     try {
@@ -37,7 +37,7 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
       if (current is TodoLoaded) {
         updated = List<Todo>.from(current.todos)..insert(0, created);
       } else {
-        updated = [created];
+        updated = [created]; // only first todo
       }
 
       emit(TodoLoaded(updated));
@@ -46,8 +46,6 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
         "New Task Added",
         created.title,
       );
-
-      emit(AddTodoSuccess());
     } catch (e) {
       emit(TodoError(e.toString()));
     }

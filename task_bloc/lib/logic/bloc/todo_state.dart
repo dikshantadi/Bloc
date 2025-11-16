@@ -31,6 +31,9 @@ class TodoError extends TodoState {
 }
 
 class AddTodoSuccess extends TodoState {
+  final Todo? todo;
+  const AddTodoSuccess([this.todo]);
+
   @override
-  List<Object?> get props => [];
+  List<Object?> get props => [todo ?? ''];
 }
