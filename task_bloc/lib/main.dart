@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:task_bloc/core/di.dart';
+import 'package:task_bloc/services/notification_service.dart';
 import 'data/models/todo.dart';
 import 'data/repository/todo_repo.dart';
 import 'logic/bloc/todo_bloc.dart';
@@ -9,7 +10,8 @@ import 'logic/bloc/todo_state.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initDependencies(); // Registers TodoRepo, AppDatabase via GetIt
+  await initDependencies();
+  await NotificationService.init();
   runApp(const MyApp());
 }
 

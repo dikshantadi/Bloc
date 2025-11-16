@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:task_bloc/services/notification_service.dart';
 import '../../data/repository/todo_repo.dart';
 import 'todo_event.dart';
 import 'todo_state.dart';
@@ -27,16 +28,26 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
 
   Future<void> _onAddTodo(addTodo event, Emitter<TodoState> emit) async {
     final current = state;
+
     emit(TodoLoading());
     try {
       final created = await repository.addTodo(event.todo);
+
+      List<Todo> updated;
       if (current is TodoLoaded) {
-        final updated = List<Todo>.from(current.todos)..insert(0, created);
-        emit(TodoLoaded(updated));
+        updated = List<Todo>.from(current.todos)..insert(0, created);
       } else {
-        final list = [created];
-        emit(TodoLoaded(list));
+        updated = [created];
       }
+
+      emit(TodoLoaded(updated));
+
+      await NotificationService.showInstantNotification(
+        "New Task Added",
+        created.title,
+      );
+
+      emit(AddTodoSuccess());
     } catch (e) {
       emit(TodoError(e.toString()));
     }
@@ -48,6 +59,10 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
       emit(TodoError('No todos to update'));
       return;
     }
+    await NotificationService.showInstantNotification(
+      "Task Updated",
+      event.todo.title,
+    );
     emit(TodoLoading());
     try {
       final updatedFromApi = await repository.updateTodo(event.todo);
@@ -67,6 +82,10 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
       emit(TodoError('No todos to delete'));
       return;
     }
+    await NotificationService.showInstantNotification(
+      "Task Deleted",
+      "A task was removed",
+    );
     emit(TodoLoading());
     try {
       await repository.deleteTodo(event.id as int);

@@ -46,6 +46,7 @@ dependencies:
   get_it: ^9.0.5
   drift_flutter: ^0.2.7
   drift_dev: ^2.29.0
+  flutter_local_notifications: ^19.5.0
 
 dev_dependencies:
   flutter_test:
